@@ -5,6 +5,8 @@ work_dir=$(realpath "$(dirname $0)")
 venv_dir=$1
 if [ -z "$venv_dir" ]; then
   venv_dir=venv
+else
+  venv_dir=$(realpath -m "$venv_dir")
 fi
 
 cd ${work_dir}
@@ -23,7 +25,7 @@ if [ -z "${CUDA_HOME}" ] && [ -d ${CUDA_HOME_CANDIDATE} ]; then
 fi
 
 # Create virtual environment
-virtualenv ${venv_dir} -p python3 --prompt="(detection)"
+virtualenv ${venv_dir} -p python3 --prompt="(detection)" || exit 1
 
 path_openvino_vars="${INTEL_OPENVINO_DIR:-/opt/intel/openvino_2021}/bin/setupvars.sh"
 if [[ -e "${path_openvino_vars}" ]]; then
@@ -53,24 +55,24 @@ export TORCHVISION_VERSION=0.9.1
 export MMCV_VERSION=1.3.0
 
 if [[ $CUDA_VERSION_CODE == "102" ]]; then
-  pip install torch==${TORCH_VERSION} torchvision==${TORCHVISION_VERSION}
+  pip install torch==${TORCH_VERSION} torchvision==${TORCHVISION_VERSION} -c constraints.txt || exit 1
 else
-  pip install torch==${TORCH_VERSION}+cu${CUDA_VERSION_CODE} torchvision==${TORCHVISION_VERSION}+cu${CUDA_VERSION_CODE} -f https://download.pytorch.org/whl/torch_stable.html
+  pip install torch==${TORCH_VERSION}+cu${CUDA_VERSION_CODE} torchvision==${TORCHVISION_VERSION}+cu${CUDA_VERSION_CODE} -f https://download.pytorch.org/whl/torch_stable.html -c constraints.txt || exit 1
 fi
 
-pip install --no-cache-dir mmcv-full==${MMCV_VERSION} -f https://download.openmmlab.com/mmcv/dist/cu${CUDA_VERSION_CODE}/torch${TORCH_VERSION}/index.html
+pip install --no-cache-dir mmcv-full==${MMCV_VERSION} -f https://download.openmmlab.com/mmcv/dist/cu${CUDA_VERSION_CODE}/torch${TORCH_VERSION}/index.html -c constraints.txt || exit 1
 
 # Install other requirements.
-cat requirements.txt | xargs -n 1 -L 1 pip3 install
+cat requirements.txt | xargs -n 1 -L 1 pip3 install -c constraints.txt || exit 1
 
 mo_requirements_file="${INTEL_OPENVINO_DIR:-/opt/intel/openvino_2021}/deployment_tools/model_optimizer/requirements_onnx.txt"
 if [[ -e "${mo_requirements_file}" ]]; then
-  pip install -qr ${mo_requirements_file}
+  pip install -qr ${mo_requirements_file} -c constraints.txt || exit 1
 else
   echo "[WARNING] Model optimizer requirements were not installed. Please install the OpenVino toolkit to use one."
 fi
 
-pip install -e .
+pip install -c constraints.txt -e . || exit 1
 MMDETECTION_DIR=`realpath .`
 echo "export MMDETECTION_DIR=${MMDETECTION_DIR}" >> ${venv_dir}/bin/activate
 
