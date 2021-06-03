@@ -4,7 +4,7 @@ work_dir=$(realpath "$(dirname $0)")
 
 venv_dir=$1
 if [ -z "$venv_dir" ]; then
-  venv_dir=venv
+  venv_dir=$(realpath -m ${work_dir}/venv)
 else
   venv_dir=$(realpath -m "$venv_dir")
 fi
